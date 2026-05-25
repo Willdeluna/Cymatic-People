@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CYMATIC SOCIAL FIELD — Resonant Bodies</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Cormorant+Garamond:ital,wght@0,300;0,500;1,300&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0d0a;
+    --ink: #c8d4c0;
+    --phos: #7fff8a;
+    --phos-dim: #3a6b40;
+    --amber: #ffb84a;
+    --rust: #c4624a;
+    --line: rgba(127, 255, 138, 0.18);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    overflow: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg,
+      rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px,
+      transparent 1px, transparent 3px);
+    pointer-events: none;
+    z-index: 100;
+    mix-blend-mode: multiply;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%);
+    pointer-events: none;
+    z-index: 101;
+  }
+
+  #canvas-wrap { position: fixed; inset: 0; z-index: 1; cursor: grab; }
+  #canvas-wrap:active { cursor: grabbing; }
+  canvas { display: block; }
+
+  .header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 14px 22px 12px;
+    z-index: 50;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(to bottom, rgba(6,8,6,0.85), transparent);
+  }
+  .brand {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 20px;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .brand .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-style: normal;
+    font-size: 9px;
+    color: var(--phos-dim);
+    letter-spacing: 0.3em;
+    display: block;
+    margin-top: 5px;
+  }
+  .header-right {
+    text-align: right;
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--phos-dim);
+    line-height: 1.7;
+  }
+  .header-right .live {
+    color: var(--phos);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pulse-dot {
+    width: 6px; height: 6px;
+    background: var(--phos);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--phos);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .panel {
+    position: fixed;
+    left: 18px;
+    top: 76px;
+    width: 320px;
+    background: rgba(10, 13, 10, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--line);
+    z-index: 40;
+    font-size: 11px;
+    max-height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease;
+  }
+  .panel.collapsed { width: 52px; }
+  .panel.collapsed .panel-body,
+  .panel.collapsed .panel-title-text { display: none; }
+
+  .panel-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(127,255,138,0.04);
+    flex-shrink: 0;
+  }
+  .panel-header .title {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--phos);
+    text-transform: uppercase;
+  }
+  .collapse-btn {
+    width: 22px; height: 22px;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--phos);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .collapse-btn:hover { background: rgba(127,255,138,0.1); border-color: var(--phos); }
+  .panel-body {
+    padding: 12px 14px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .panel-body::-webkit-scrollbar { width: 4px; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--phos-dim); }
+
+  .ctrl-group {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .ctrl-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+  .ctrl-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink);
+    opacity: 0.85;
+  }
+  .ctrl-value {
+    color: var(--phos);
+    letter-spacing: 0.1em;
+    font-weight: 500;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 2px;
+    background: var(--phos-dim);
+    outline: none;
+    cursor: ew-resize;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    background: var(--phos);
+    border: 1px solid var(--bg);
+    box-shadow: 0 0 6px var(--phos);
+    cursor: ew-resize;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 12px; height: 12px;
+    background: var(--phos);
+    border: 1px solid var(--bg);
+    box-shadow: 0 0 6px var(--phos);
+    cursor: ew-resize;
+  }
+
+  .toggle-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .toggle {
+    padding: 5px 9px;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .toggle.on {
+    border-color: var(--phos);
+    color: var(--phos);
+    background: rgba(127,255,138,0.08);
+  }
+  .toggle:hover { border-color: var(--phos); }
+
+  .person-card {
+    border: 1px solid var(--line);
+    margin-bottom: 6px;
+    padding: 8px 10px;
+    background: rgba(127,255,138,0.02);
+    position: relative;
+  }
+  .person-card .person-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .swatch {
+    width: 14px; height: 14px;
+    border: 1px solid rgba(0,0,0,0.4);
+    box-shadow: 0 0 6px currentColor;
+    flex-shrink: 0;
+  }
+  .person-card .pname {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    flex: 1;
+    color: var(--ink);
+  }
+  .person-card .pfreq {
+    font-size: 9px;
+    color: var(--phos);
+    letter-spacing: 0.1em;
+  }
+  .person-card .pdel {
+    width: 18px; height: 18px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--rust);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 1;
+    transition: all 0.15s;
+  }
+  .person-card .pdel:hover { background: rgba(196, 98, 74, 0.15); border-color: var(--rust); }
+  .person-card input[type=range] { height: 1px; margin-top: 2px; }
+
+  /* Per-person integrity bar */
+  .person-card .integrity-bar {
+    height: 2px;
+    background: rgba(127,255,138,0.1);
+    margin-top: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .person-card .integrity-fill {
+    height: 100%;
+    background: linear-gradient(to right, #c4624a 0%, #ffb84a 50%, #7fff8a 100%);
+    transition: width 0.3s ease;
+  }
+
+  .add-btn {
+    width: 100%;
+    margin-top: 6px;
+    padding: 7px;
+    background: rgba(127,255,138,0.06);
+    border: 1px solid var(--phos);
+    color: var(--phos);
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .add-btn:hover { background: rgba(127,255,138,0.18); box-shadow: 0 0 12px rgba(127,255,138,0.3); }
+  .add-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .scenario-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+  .scenario {
+    padding: 6px 7px;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+  }
+  .scenario:hover { border-color: var(--phos); color: var(--phos); }
+
+  .readout {
+    position: fixed;
+    right: 18px;
+    top: 76px;
+    width: 230px;
+    background: rgba(10, 13, 10, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--line);
+    z-index: 40;
+    font-size: 10px;
+    transition: width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
+  }
+  .readout.collapsed { width: 52px; }
+  .readout.collapsed .readout-body { display: none; }
+  .readout-header {
+    padding: 8px 10px 8px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    background: rgba(127,255,138,0.04);
+  }
+  .readout-header .rtitle {
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--phos);
+    text-transform: uppercase;
+  }
+  .readout.collapsed .rtitle { display: none; }
+  .readout-body { padding: 0; }
+  .readout-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--line);
+    letter-spacing: 0.15em;
+  }
+  .readout-row:last-child { border-bottom: none; }
+  .readout-row .lab { color: var(--ink); opacity: 0.6; text-transform: uppercase; }
+  .readout-row .val { color: var(--phos); font-weight: 500; }
+
+  .matrix {
+    position: fixed;
+    right: 18px;
+    top: 280px;
+    width: 230px;
+    background: rgba(10,13,10,0.92);
+    border: 1px solid var(--line);
+    z-index: 40;
+    font-size: 9px;
+    transition: width 0.3s ease, height 0.3s ease, top 0.3s ease;
+  }
+  .matrix.collapsed { width: 52px; }
+  .matrix.collapsed .matrix-body-wrap { display: none; }
+  .matrix-header {
+    padding: 8px 10px 8px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    background: rgba(127,255,138,0.04);
+  }
+  .matrix-header .mtitle {
+    color: var(--phos);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    font-size: 9px;
+  }
+  .matrix.collapsed .mtitle { display: none; }
+  .matrix-body-wrap { padding: 10px 14px; }
+  .matrix .mrow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 9px;
+  }
+  .matrix .mtype {
+    padding: 1px 5px;
+    border: 1px solid currentColor;
+    font-size: 8px;
+    letter-spacing: 0.15em;
+  }
+
+  .footer {
+    position: fixed;
+    bottom: 14px;
+    left: 22px;
+    right: 22px;
+    z-index: 50;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    pointer-events: none;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--phos-dim);
+    text-transform: uppercase;
+  }
+  .footer .principle {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: var(--ink);
+    opacity: 0.55;
+    max-width: 380px;
+    line-height: 1.4;
+  }
+  .footer .principle .sig {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.3em;
+    margin-top: 4px;
+    text-transform: uppercase;
+    color: var(--phos-dim);
+    font-style: normal;
+  }
+
+  @media (max-width: 900px) {
+    .panel { width: 280px; }
+    .readout, .matrix { display: none; }
+    .footer .principle { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-wrap"></div>
+
+<header class="header">
+  <div class="brand">
+    Cymatic Social Field
+    <span class="num">APPARATUS · 006 / RESONANT BODIES</span>
+  </div>
+  <div class="header-right">
+    <div class="live"><span class="pulse-dot"></span> FIELD ACTIVE</div>
+    <div id="grain-total">— grains</div>
+    <div>Population · <span id="pop-count">3</span></div>
+  </div>
+</header>
+
+<aside class="panel collapsed" id="panel">
+  <div class="panel-header">
+    <span class="title panel-title-text">◇ Walker Lattice</span>
+    <button class="collapse-btn" id="collapse-btn">▶</button>
+  </div>
+  <div class="panel-body">
+
+    <div class="ctrl-group">
+      <div class="ctrl-label"><span>People</span><span class="ctrl-value">max 6</span></div>
+      <div id="people-list"></div>
+      <button class="add-btn" id="add-btn">+ Add Walker</button>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label"><span>Scenarios</span><span class="ctrl-value">presets</span></div>
+      <div class="scenario-grid">
+        <button class="scenario" data-scenario="harmony">Harmony Trio</button>
+        <button class="scenario" data-scenario="discord">Dissonant Pair</button>
+        <button class="scenario" data-scenario="octaves">Octave Stack</button>
+        <button class="scenario" data-scenario="crowd">Crowd · 6</button>
+        <button class="scenario" data-scenario="solo">Lone Walker</button>
+        <button class="scenario" data-scenario="duet">Beating Duet</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label"><span>Walk Speed</span><span class="ctrl-value"><span id="speed-val">1.0</span>×</span></div>
+      <input type="range" id="speed" min="0" max="3" step="0.05" value="1.0">
+
+      <div class="ctrl-label" style="margin-top:10px"><span>Interaction Range</span><span class="ctrl-value"><span id="range-val">3.0</span> m</span></div>
+      <input type="range" id="range" min="1.0" max="6.0" step="0.1" value="3.0">
+
+      <div class="ctrl-label" style="margin-top:10px"><span>Distortion Strength</span><span class="ctrl-value"><span id="dist-val">1.0</span>×</span></div>
+      <input type="range" id="distortion" min="0" max="2.5" step="0.05" value="1.0">
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label"><span>Display</span><span class="ctrl-value">visual</span></div>
+      <div class="toggle-row">
+        <button class="toggle on" id="t-floor">▦ Floor</button>
+        <button class="toggle" id="t-aura">◯ Aura</button>
+        <button class="toggle on" id="t-labels">⌅ Labels</button>
+        <button class="toggle on" id="t-breath">⊙ Breathing Zoom</button>
+      </div>
+    </div>
+
+  </div>
+</aside>
+
+<aside class="readout collapsed" id="readout">
+  <div class="readout-header">
+    <span class="rtitle">▸ Telemetry</span>
+    <button class="collapse-btn" id="readout-collapse">▶</button>
+  </div>
+  <div class="readout-body">
+    <div class="readout-row"><span class="lab">Coherence</span><span class="val" id="r-coh">—</span></div>
+    <div class="readout-row"><span class="lab">Form Integrity</span><span class="val" id="r-integrity">100%</span></div>
+    <div class="readout-row"><span class="lab">Mixing</span><span class="val" id="r-mix">0.00</span></div>
+    <div class="readout-row"><span class="lab">Avg Distance</span><span class="val" id="r-dist">— m</span></div>
+  </div>
+</aside>
+
+<aside class="matrix collapsed" id="matrix">
+  <div class="matrix-header">
+    <span class="mtitle">▸ Pair Relations</span>
+    <button class="collapse-btn" id="matrix-collapse">▶</button>
+  </div>
+  <div class="matrix-body-wrap">
+    <div id="matrix-body"></div>
+  </div>
+</aside>
+
+<div class="footer">
+  <div class="principle">
+    In harmony, the body remembers its shape. In dissonance, it forgets.
+    <span class="sig">— Field Notes · Vol III</span>
+  </div>
+  <div style="text-align:right">DRAG · ROTATE<br>SCROLL · ZOOM</div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ---------- SCENE ----------
+const wrap = document.getElementById('canvas-wrap');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x060806, 0.035);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 200);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x060806, 1);
+wrap.appendChild(renderer.domElement);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+let camYaw = -0.7, camPitch = 0.2, camDist = 14;
+let dragging = false, lx = 0, ly = 0;
+renderer.domElement.addEventListener('pointerdown', (e) => { dragging = true; lx = e.clientX; ly = e.clientY; });
+window.addEventListener('pointerup', () => dragging = false);
+window.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  camYaw   -= (e.clientX - lx) * 0.005;
+  camPitch -= (e.clientY - ly) * 0.005;
+  camPitch = Math.max(-1.4, Math.min(1.4, camPitch));
+  lx = e.clientX; ly = e.clientY;
+});
+renderer.domElement.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  camDist *= 1 + e.deltaY * 0.001;
+  camDist = Math.max(4, Math.min(50, camDist));
+}, { passive: false });
+// breathing zoom — slow oscillation of camera distance
+let breathingOffset = 0;
+function updateCamera() {
+  const effectiveDist = camDist + breathingOffset;
+  camera.position.x = Math.cos(camYaw) * Math.cos(camPitch) * effectiveDist;
+  camera.position.y = Math.sin(camPitch) * effectiveDist;
+  camera.position.z = Math.sin(camYaw) * Math.cos(camPitch) * effectiveDist;
+  camera.lookAt(0, 0.3, 0);
+}
+
+// ---------- ARENA ----------
+const ARENA = 6;
+const FLOOR_Y = -1.85;
+const arenaGroup = new THREE.Group();
+scene.add(arenaGroup);
+
+const floorGroup = new THREE.Group();
+const floorMat = new THREE.LineBasicMaterial({ color: 0x1f3a23, transparent: true, opacity: 0.35 });
+const floorBright = new THREE.LineBasicMaterial({ color: 0x3a6b40, transparent: true, opacity: 0.5 });
+for (let i = -ARENA; i <= ARENA; i++) {
+  const isMain = (i === -ARENA || i === ARENA || i === 0);
+  const m = isMain ? floorBright : floorMat;
+  const pts1 = [new THREE.Vector3(i, FLOOR_Y, -ARENA), new THREE.Vector3(i, FLOOR_Y, ARENA)];
+  floorGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts1), m));
+  const pts2 = [new THREE.Vector3(-ARENA, FLOOR_Y, i), new THREE.Vector3(ARENA, FLOOR_Y, i)];
+  floorGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts2), m));
+}
+arenaGroup.add(floorGroup);
+
+// ---------- HUMANOID SKELETON ----------
+// Anatomically detailed: head (cranium + jaw), neck, shoulders, torso (chest+abdomen), hips,
+// upper arms, forearms, hands, upper legs, lower legs, feet.
+// Each grain has: body-local position, part name, and "anatomical importance" weight (1=core, 0=peripheral)
+const GRAINS_PER_PERSON = 600;
+
+function buildHumanoidSkeleton() {
+  const grains = [];
+
+  // Head: cranium top + face — denser packing, distinct shape
+  // The head is an ovoid, slightly elongated up-down
+  for (let i = 0; i < 90; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    // ovoid radius
+    const rBase = 0.22;
+    const dirY = Math.cos(phi);
+    // slightly more elongated up than wide
+    const r = rBase * (1 - 0.05 * Math.abs(dirY));
+    const x = r * Math.sin(phi) * Math.cos(theta);
+    const y = 1.62 + r * dirY;
+    const z = r * Math.sin(phi) * Math.sin(theta) * 0.95;  // slightly flatter front-back
+    grains.push({ x, y, z, part: 'head', t: 0, important: 1.0 });
+  }
+
+  // Neck — small cylinder connecting head to torso
+  for (let i = 0; i < 18; i++) {
+    const ny = 1.30 + Math.random() * 0.12;
+    const ang = Math.random() * Math.PI * 2;
+    const r = 0.09 + Math.random() * 0.02;
+    grains.push({
+      x: Math.cos(ang) * r,
+      y: ny,
+      z: Math.sin(ang) * r * 0.85,
+      part: 'neck', t: 0, important: 1.0
+    });
+  }
+
+  // Shoulders — emphasize the deltoid bulge so silhouette reads as human
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 20; i++) {
+      const ang = Math.random() * Math.PI;
+      const r = 0.13 + Math.random() * 0.04;
+      grains.push({
+        x: side * (0.28 + Math.cos(ang) * r * 0.5),
+        y: 1.20 + Math.sin(ang) * r * 0.5 + (Math.random()-0.5) * 0.08,
+        z: (Math.random()-0.5) * 0.18,
+        part: 'shoulder', t: 0, important: 0.9
+      });
+    }
+  }
+
+  // Chest (upper torso) — wider, more rectangular
+  for (let i = 0; i < 70; i++) {
+    const ty = 0.85 + Math.random() * 0.40;  // chest range
+    const angle = Math.random() * Math.PI * 2;
+    // chest is wider front-back than belly
+    const radX = 0.27 + Math.random() * 0.04;
+    const radZ = 0.16 + Math.random() * 0.04;
+    grains.push({
+      x: radX * Math.cos(angle),
+      y: ty,
+      z: radZ * Math.sin(angle),
+      part: 'chest', t: 0, important: 1.0
+    });
+  }
+
+  // Abdomen / waist — slightly narrower
+  for (let i = 0; i < 50; i++) {
+    const ty = 0.40 + Math.random() * 0.45;
+    const taper = 1 - 0.15 * Math.abs(ty - 0.6) / 0.6;
+    const angle = Math.random() * Math.PI * 2;
+    const radX = (0.22 + Math.random() * 0.04) * taper;
+    const radZ = (0.14 + Math.random() * 0.03) * taper;
+    grains.push({
+      x: radX * Math.cos(angle),
+      y: ty,
+      z: radZ * Math.sin(angle),
+      part: 'abdomen', t: 0, important: 1.0
+    });
+  }
+
+  // Hips — widen out again
+  for (let i = 0; i < 36; i++) {
+    const ty = 0.18 + Math.random() * 0.18;
+    const angle = Math.random() * Math.PI * 2;
+    const radX = 0.24 + Math.random() * 0.04;
+    const radZ = 0.16 + Math.random() * 0.03;
+    grains.push({
+      x: radX * Math.cos(angle),
+      y: ty,
+      z: radZ * Math.sin(angle),
+      part: 'hips', t: 0, important: 1.0
+    });
+  }
+
+  // Arms — upper arm + forearm + hand, each side
+  for (const side of [-1, 1]) {
+    // Upper arm — from shoulder (y=1.15) to elbow (y=0.55)
+    for (let i = 0; i < 30; i++) {
+      const along = Math.random();
+      const shoulderX = side * 0.30, shoulderY = 1.15;
+      const elbowX   = side * 0.34, elbowY   = 0.55;
+      const cx = shoulderX + along * (elbowX - shoulderX);
+      const cy = shoulderY + along * (elbowY - shoulderY);
+      const rad = (0.085 - along * 0.015) + Math.random() * 0.01;
+      const ang = Math.random() * Math.PI * 2;
+      grains.push({
+        x: cx + Math.cos(ang) * rad,
+        y: cy + (Math.random()-0.5) * 0.04,
+        z: Math.sin(ang) * rad,
+        part: side === 1 ? 'upper-arm-R' : 'upper-arm-L',
+        t: along, important: 0.85
+      });
+    }
+    // Forearm — elbow to wrist (y=0.10)
+    for (let i = 0; i < 26; i++) {
+      const along = Math.random();
+      const elbowX = side * 0.34, elbowY = 0.55;
+      const wristX = side * 0.36, wristY = 0.10;
+      const cx = elbowX + along * (wristX - elbowX);
+      const cy = elbowY + along * (wristY - elbowY);
+      const rad = (0.07 - along * 0.012) + Math.random() * 0.01;
+      const ang = Math.random() * Math.PI * 2;
+      grains.push({
+        x: cx + Math.cos(ang) * rad,
+        y: cy + (Math.random()-0.5) * 0.04,
+        z: Math.sin(ang) * rad,
+        part: side === 1 ? 'forearm-R' : 'forearm-L',
+        t: 0.5 + along * 0.5, important: 0.8
+      });
+    }
+    // Hand
+    for (let i = 0; i < 10; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const r = Math.random() * 0.08;
+      grains.push({
+        x: side * 0.36 + Math.cos(ang) * r,
+        y: 0.05 + (Math.random()-0.5) * 0.06,
+        z: Math.sin(ang) * r * 0.7,
+        part: side === 1 ? 'hand-R' : 'hand-L',
+        t: 1.0, important: 0.75
+      });
+    }
+  }
+
+  // Legs — upper leg (thigh) + lower leg (shin) + foot
+  for (const side of [-1, 1]) {
+    // Thigh — from hip (y=0.18, x=side*0.13) to knee (y=-0.55)
+    for (let i = 0; i < 38; i++) {
+      const along = Math.random();
+      const hipX = side * 0.13, hipY = 0.18;
+      const kneeX = side * 0.14, kneeY = -0.55;
+      const cx = hipX + along * (kneeX - hipX);
+      const cy = hipY + along * (kneeY - hipY);
+      const rad = (0.115 - along * 0.025) + Math.random() * 0.01;
+      const ang = Math.random() * Math.PI * 2;
+      grains.push({
+        x: cx + Math.cos(ang) * rad,
+        y: cy + (Math.random()-0.5) * 0.04,
+        z: Math.sin(ang) * rad,
+        part: side === 1 ? 'thigh-R' : 'thigh-L',
+        t: along * 0.5, important: 0.9
+      });
+    }
+    // Shin — knee to ankle (y=-1.30)
+    for (let i = 0; i < 32; i++) {
+      const along = Math.random();
+      const kneeX = side * 0.14, kneeY = -0.55;
+      const ankleX = side * 0.13, ankleY = -1.30;
+      const cx = kneeX + along * (ankleX - kneeX);
+      const cy = kneeY + along * (ankleY - kneeY);
+      const rad = (0.08 - along * 0.015) + Math.random() * 0.01;
+      const ang = Math.random() * Math.PI * 2;
+      grains.push({
+        x: cx + Math.cos(ang) * rad,
+        y: cy + (Math.random()-0.5) * 0.04,
+        z: Math.sin(ang) * rad,
+        part: side === 1 ? 'shin-R' : 'shin-L',
+        t: 0.5 + along * 0.5, important: 0.85
+      });
+    }
+    // Foot
+    for (let i = 0; i < 14; i++) {
+      grains.push({
+        x: side * 0.13 + (Math.random()-0.5) * 0.10,
+        y: -1.38 + Math.random() * 0.08,
+        z: 0.06 + Math.random() * 0.12,   // foot extends forward
+        part: side === 1 ? 'foot-R' : 'foot-L',
+        t: 1.0, important: 0.8
+      });
+    }
+  }
+
+  return grains;
+}
+
+// ---------- PERSON CLASS ----------
+// Color palette — distinct hues. Names are drawn fresh each time from a wider pool.
+const PERSON_PALETTE = [
+  { color: [0.50, 1.00, 0.55], freq: 432, hex: '#7fff8a' },
+  { color: [1.00, 0.55, 0.30], freq: 528, hex: '#ff8a4f' },
+  { color: [0.30, 0.60, 1.00], freq: 256, hex: '#4f9aff' },
+  { color: [1.00, 0.35, 0.72], freq: 741, hex: '#ff5cb8' },
+  { color: [1.00, 0.94, 0.30], freq: 639, hex: '#fff14f' },
+  { color: [0.70, 0.55, 1.00], freq: 852, hex: '#b38aff' }
+];
+
+// Names drawn from constellations, stars, celestial phenomena, and cross-cultural roots.
+// Each walker is "made of stars" — so they're named for them.
+const NAME_POOL = [
+  // Stars
+  'Vega', 'Lyra', 'Altair', 'Sirius', 'Rigel', 'Antares', 'Deneb', 'Capella',
+  'Arcturus', 'Polaris', 'Procyon', 'Aldebaran', 'Spica', 'Mira', 'Bellatrix',
+  'Cassiopeia', 'Andromeda', 'Cygnus', 'Orion', 'Perseus',
+  // Cosmic phenomena & mythic
+  'Nova', 'Lumen', 'Echo', 'Halo', 'Nebula', 'Solen', 'Astra', 'Stella',
+  'Zephyr', 'Aether', 'Pyra', 'Selene', 'Helios', 'Aurora', 'Caelum',
+  // Cross-cultural names with celestial roots
+  'Tara', 'Soren', 'Luma', 'Kai', 'Anil', 'Yara', 'Inanna', 'Ravi',
+  'Iris', 'Saoirse', 'Onyx', 'Indra', 'Nuri', 'Suri', 'Amaru', 'Esen',
+  'Hoshi', 'Kira', 'Niko', 'Theia', 'Bryn', 'Cael', 'Zara', 'Levi'
+];
+
+// Per-session reservoir to avoid duplicates while running
+const _usedNames = new Set();
+function pickName() {
+  const pool = NAME_POOL.filter(n => !_usedNames.has(n));
+  const name = pool.length > 0
+    ? pool[Math.floor(Math.random() * pool.length)]
+    : NAME_POOL[Math.floor(Math.random() * NAME_POOL.length)];
+  _usedNames.add(name);
+  return name;
+}
+function releaseName(name) {
+  _usedNames.delete(name);
+}
+
+class Person {
+  constructor(template, slotIdx) {
+    this.name = template.name;
+    this.color = template.color;
+    this.hex = template.hex;
+    this.freq = template.freq;
+    this.phase = Math.random() * Math.PI * 2;
+
+    this.x = (Math.random()-0.5) * ARENA * 1.4;
+    this.z = (Math.random()-0.5) * ARENA * 1.4;
+    this.targetX = this.x;
+    this.targetZ = this.z;
+    this.vx = 0; this.vz = 0;
+    this.heading = 0;
+    this.thinkTimer = 0;
+    this.gait = Math.random() * Math.PI * 2;
+
+    this.skeleton = buildHumanoidSkeleton();
+
+    this.slotIdx = slotIdx;
+    this.count = this.skeleton.length;
+
+    this.localTime = 0;
+    this._formScore = 1.0;
+    this._smoothedForm = 1.0;
+    // per-grain randomness offset for distortion patterns
+    this.grainSeeds = new Float32Array(this.count);
+    for (let i = 0; i < this.count; i++) this.grainSeeds[i] = Math.random() * 1000;
+  }
+
+  pickTarget() {
+    this.targetX = (Math.random()-0.5) * ARENA * 1.6;
+    this.targetZ = (Math.random()-0.5) * ARENA * 1.6;
+    this.thinkTimer = 3 + Math.random() * 5;
+  }
+
+  step(dt, others, walkSpeed) {
+    this.thinkTimer -= dt;
+    const dx = this.targetX - this.x;
+    const dz = this.targetZ - this.z;
+    const dist = Math.sqrt(dx*dx + dz*dz);
+
+    if (dist < 0.6 || this.thinkTimer <= 0) this.pickTarget();
+
+    let ax = 0, az = 0;
+    if (dist > 0.01) {
+      ax = (dx/dist) * 1.8;
+      az = (dz/dist) * 1.8;
+    }
+
+    for (const o of others) {
+      if (o === this) continue;
+      const ddx = this.x - o.x;
+      const ddz = this.z - o.z;
+      const dd = Math.sqrt(ddx*ddx + ddz*ddz);
+      if (dd < 1.2 && dd > 0.01) {
+        const push = (1.2 - dd) * 5;
+        ax += (ddx/dd) * push;
+        az += (ddz/dd) * push;
+      }
+    }
+
+    const wallMargin = 0.7;
+    if (this.x >  ARENA - wallMargin) ax -= (this.x - (ARENA - wallMargin)) * 5;
+    if (this.x < -ARENA + wallMargin) ax -= (this.x - (-ARENA + wallMargin)) * 5;
+    if (this.z >  ARENA - wallMargin) az -= (this.z - (ARENA - wallMargin)) * 5;
+    if (this.z < -ARENA + wallMargin) az -= (this.z - (-ARENA + wallMargin)) * 5;
+
+    this.vx = (this.vx + ax * dt) * 0.92;
+    this.vz = (this.vz + az * dt) * 0.92;
+
+    const sp = Math.sqrt(this.vx*this.vx + this.vz*this.vz);
+    const MAX = 1.8 * walkSpeed;
+    if (sp > MAX) { this.vx = this.vx/sp * MAX; this.vz = this.vz/sp * MAX; }
+
+    this.x += this.vx * dt;
+    this.z += this.vz * dt;
+
+    this.gait += sp * dt * 6;
+    this.localTime += dt * (this.freq * 0.012);
+
+    if (sp > 0.05) {
+      const targetHeading = Math.atan2(this.vx, this.vz);
+      let dh = targetHeading - this.heading;
+      while (dh > Math.PI) dh -= 2*Math.PI;
+      while (dh < -Math.PI) dh += 2*Math.PI;
+      this.heading += dh * Math.min(1, dt * 5);
+    }
+  }
+}
+
+// ---------- HARMONIC RELATIONSHIPS ----------
+function consonance(f1, f2) {
+  const hi = Math.max(f1, f2), lo = Math.min(f1, f2);
+  const ratio = hi / lo;
+  const targets = [
+    {r: 1.0,    weight: 1.0},
+    {r: 2.0,    weight: 0.95},
+    {r: 1.5,    weight: 0.90},
+    {r: 1.333,  weight: 0.78},
+    {r: 1.25,   weight: 0.72},
+    {r: 1.2,    weight: 0.68},
+    {r: 1.667,  weight: 0.70},
+    {r: 3.0,    weight: 0.85},   // octave + fifth (twelfth)
+  ];
+  let best = 0;
+  for (const t of targets) {
+    const proximity = Math.exp(-((ratio - t.r) ** 2) / 0.01);
+    const score = t.weight * proximity;
+    if (score > best) best = score;
+  }
+  const beat = Math.abs(f1 - f2);
+  if (beat < 12 && ratio > 1.0001) {
+    best = Math.max(best, 0.25);
+  }
+  return best;
+}
+
+function classifyPair(f1, f2) {
+  const hi = Math.max(f1,f2), lo = Math.min(f1,f2);
+  const ratio = hi / lo;
+  const beat = Math.abs(f1 - f2);
+  const matches = [
+    { r: 1.00, tol: 0.01,  label: 'UNISON',  color: '#7fff8a' },
+    { r: 2.00, tol: 0.03,  label: 'OCTAVE',  color: '#7fff8a' },
+    { r: 1.50, tol: 0.03,  label: 'FIFTH',   color: '#aaff7f' },
+    { r: 1.333,tol: 0.03,  label: 'FOURTH',  color: '#aaff7f' },
+    { r: 1.25, tol: 0.03,  label: 'MAJ 3RD', color: '#cdff7f' },
+    { r: 1.20, tol: 0.03,  label: 'MIN 3RD', color: '#cdff7f' },
+    { r: 1.414,tol: 0.04,  label: 'TRITONE', color: '#c4624a' },
+  ];
+  for (const m of matches) {
+    if (Math.abs(ratio - m.r) < m.tol) return m;
+  }
+  if (beat < 8 && ratio > 1.001) return { label: 'BEATING', color: '#ffb84a' };
+  return { label: 'DISSONANT', color: '#c4624a' };
+}
+
+// ---------- GRAIN BUFFER ----------
+const MAX_PEOPLE = 6;
+const TOTAL_GRAINS = MAX_PEOPLE * GRAINS_PER_PERSON;
+
+const gPositions = new Float32Array(TOTAL_GRAINS * 3);
+const gColors = new Float32Array(TOTAL_GRAINS * 3);
+const gVelocities = new Float32Array(TOTAL_GRAINS * 3);
+const gActive = new Float32Array(TOTAL_GRAINS);
+
+for (let i = 0; i < TOTAL_GRAINS; i++) {
+  gPositions[i*3] = 0; gPositions[i*3+1] = -100; gPositions[i*3+2] = 0;
+  gActive[i] = 0;
+}
+
+const grainGeom = new THREE.BufferGeometry();
+grainGeom.setAttribute('position', new THREE.BufferAttribute(gPositions, 3));
+grainGeom.setAttribute('color', new THREE.BufferAttribute(gColors, 3));
+
+const grainMat = new THREE.ShaderMaterial({
+  uniforms: { pointSize: { value: 5.5 } },
+  vertexShader: `
+    attribute vec3 color;
+    varying vec3 vColor;
+    uniform float pointSize;
+    void main() {
+      vColor = color;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = pointSize * (40.0 / -mv.z);
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vColor;
+    void main() {
+      vec2 c = gl_PointCoord - 0.5;
+      float r = length(c);
+      if (r > 0.5) discard;
+      float a = smoothstep(0.5, 0.15, r);
+      vec3 col = vColor + vec3(0.18) * smoothstep(0.5, 0.0, r);
+      gl_FragColor = vec4(col, a);
+    }
+  `,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
+const grains = new THREE.Points(grainGeom, grainMat);
+scene.add(grains);
+
+// ---------- HARMONIC BONDS ----------
+// When two people are close AND consonant, we draw:
+//  1) a stream of grains flowing between them (color-mixed)
+//  2) a glowing line connection
+//  3) a floating symbol above the midpoint showing the interval
+const BOND_STREAM_GRAINS = 80;
+const MAX_BONDS = 15;   // C(6,2) = 15 pairs max
+
+// Pre-allocate stream grain buffer (separate from body grains)
+const bondPositions = new Float32Array(MAX_BONDS * BOND_STREAM_GRAINS * 3);
+const bondColors    = new Float32Array(MAX_BONDS * BOND_STREAM_GRAINS * 3);
+const bondActive    = new Float32Array(MAX_BONDS * BOND_STREAM_GRAINS);
+for (let i = 0; i < bondPositions.length; i += 3) {
+  bondPositions[i+1] = -200; // hide
+}
+
+const bondGeom = new THREE.BufferGeometry();
+bondGeom.setAttribute('position', new THREE.BufferAttribute(bondPositions, 3));
+bondGeom.setAttribute('color', new THREE.BufferAttribute(bondColors, 3));
+const bondMat = new THREE.ShaderMaterial({
+  uniforms: { pointSize: { value: 6.0 } },
+  vertexShader: `
+    attribute vec3 color;
+    varying vec3 vColor;
+    uniform float pointSize;
+    void main() {
+      vColor = color;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = pointSize * (40.0 / -mv.z);
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vColor;
+    void main() {
+      vec2 c = gl_PointCoord - 0.5;
+      float r = length(c);
+      if (r > 0.5) discard;
+      float a = smoothstep(0.5, 0.0, r);
+      vec3 col = vColor + vec3(0.25) * smoothstep(0.5, 0.0, r);
+      gl_FragColor = vec4(col, a);
+    }
+  `,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
+const bondPoints = new THREE.Points(bondGeom, bondMat);
+scene.add(bondPoints);
+
+// Interval symbols above bonded pairs (sprite per bond slot)
+const intervalSprites = [];
+function makeIntervalSprite() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 128;
+  const tex = new THREE.CanvasTexture(c);
+  tex.minFilter = THREE.LinearFilter;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, transparent: true, depthWrite: false, opacity: 0,
+    blending: THREE.AdditiveBlending
+  }));
+  sp.scale.set(1.4, 0.7, 1);
+  sp.userData = { canvas: c, ctx: c.getContext('2d'), texture: tex, currentSymbol: null };
+  return sp;
+}
+for (let i = 0; i < MAX_BONDS; i++) {
+  const sp = makeIntervalSprite();
+  scene.add(sp);
+  intervalSprites.push(sp);
+}
+
+function drawIntervalSymbol(sprite, symbol, color) {
+  if (sprite.userData.currentSymbol === symbol + color) return;
+  sprite.userData.currentSymbol = symbol + color;
+  const ctx = sprite.userData.ctx;
+  ctx.clearRect(0, 0, 256, 128);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 28;
+  ctx.fillStyle = color;
+  ctx.font = '500 56px "Cormorant Garamond", serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(symbol, 128, 64);
+  sprite.userData.texture.needsUpdate = true;
+}
+
+// Symbols for intervals
+const INTERVAL_SYMBOLS = {
+  'UNISON':  '∞',
+  'OCTAVE':  '◈',
+  'FIFTH':   '⟡',
+  'FOURTH':  '✧',
+  'MAJ 3RD': '✦',
+  'MIN 3RD': '✺',
+};
+function makeAuraSprite(hex) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(64, 64, 4, 64, 64, 60);
+  grad.addColorStop(0, hex + 'aa');
+  grad.addColorStop(0.5, hex + '33');
+  grad.addColorStop(1, hex + '00');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,128,128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.minFilter = THREE.LinearFilter;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.55
+  }));
+  s.scale.set(3, 3, 1);
+  return s;
+}
+
+function makeLabel(text, hex) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = hex;
+  ctx.font = '500 22px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = hex;
+  ctx.shadowBlur = 14;
+  ctx.fillText(text, 128, 40);
+  const tex = new THREE.CanvasTexture(c);
+  tex.minFilter = THREE.LinearFilter;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, transparent: true, depthWrite: false, opacity: 0.85
+  }));
+  sp.scale.set(1.6, 0.4, 1);
+  return sp;
+}
+
+// ---------- STATE ----------
+const state = {
+  walkSpeed: 1.0,
+  interactionRange: 3.0,
+  distortion: 1.0,
+  showFloor: true,
+  showAura: false,
+  showLabels: true,
+  breathingZoom: true
+};
+
+const people = [];
+
+function addPerson(templateIdx) {
+  if (people.length >= MAX_PEOPLE) return;
+  const idx = templateIdx ?? people.length;
+  const tpl = PERSON_PALETTE[idx % PERSON_PALETTE.length];
+  const slotIdx = people.length * GRAINS_PER_PERSON;
+  const p = new Person({
+    name: pickName(),
+    color: tpl.color,
+    hex: tpl.hex,
+    freq: tpl.freq
+  }, slotIdx);
+
+  for (let i = 0; i < p.count; i++) {
+    const s = p.skeleton[i];
+    const gIdx = (p.slotIdx + i) * 3;
+    gPositions[gIdx]   = p.x + s.x;
+    gPositions[gIdx+1] = FLOOR_Y + 1.3 + s.y;
+    gPositions[gIdx+2] = p.z + s.z;
+    gColors[gIdx]   = p.color[0];
+    gColors[gIdx+1] = p.color[1];
+    gColors[gIdx+2] = p.color[2];
+    gVelocities[gIdx] = gVelocities[gIdx+1] = gVelocities[gIdx+2] = 0;
+    gActive[p.slotIdx + i] = 1;
+  }
+
+  const aura = makeAuraSprite(p.hex);
+  aura.material.opacity = 0;
+  scene.add(aura);
+  p.aura = aura;
+
+  const label = makeLabel(p.name, p.hex);
+  label.visible = state.showLabels;
+  scene.add(label);
+  p.label = label;
+
+  people.push(p);
+  rebuildPeopleList();
+}
+
+function removePerson(idx) {
+  const p = people[idx];
+  releaseName(p.name);
+  for (let i = 0; i < p.count; i++) {
+    gActive[p.slotIdx + i] = 0;
+    gPositions[(p.slotIdx + i) * 3 + 1] = -100;
+  }
+  scene.remove(p.aura);
+  p.aura.material.map.dispose();
+  p.aura.material.dispose();
+  scene.remove(p.label);
+  p.label.material.map.dispose();
+  p.label.material.dispose();
+
+  people.splice(idx, 1);
+
+  // re-pack slots
+  for (let k = 0; k < people.length; k++) {
+    const newSlot = k * GRAINS_PER_PERSON;
+    if (people[k].slotIdx !== newSlot) {
+      const oldSlot = people[k].slotIdx;
+      for (let i = 0; i < people[k].count; i++) {
+        gPositions[(newSlot + i)*3]   = gPositions[(oldSlot + i)*3];
+        gPositions[(newSlot + i)*3+1] = gPositions[(oldSlot + i)*3+1];
+        gPositions[(newSlot + i)*3+2] = gPositions[(oldSlot + i)*3+2];
+        gColors[(newSlot + i)*3]   = gColors[(oldSlot + i)*3];
+        gColors[(newSlot + i)*3+1] = gColors[(oldSlot + i)*3+1];
+        gColors[(newSlot + i)*3+2] = gColors[(oldSlot + i)*3+2];
+        gActive[newSlot + i] = gActive[oldSlot + i];
+      }
+      if (oldSlot > newSlot) {
+        for (let i = 0; i < people[k].count; i++) {
+          gActive[oldSlot + i] = 0;
+          gPositions[(oldSlot + i)*3 + 1] = -100;
+        }
+      }
+      people[k].slotIdx = newSlot;
+    }
+  }
+  rebuildPeopleList();
+}
+
+// ---------- UI ----------
+const $ = (id) => document.getElementById(id);
+
+function rebuildPeopleList() {
+  const list = $('people-list');
+  list.innerHTML = '';
+  people.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'person-card';
+    card.innerHTML = `
+      <div class="person-row">
+        <span class="swatch" style="background:${p.hex};color:${p.hex}"></span>
+        <span class="pname">${p.name}</span>
+        <span class="pfreq"><span id="freq-r-${i}">${p.freq}</span> Hz</span>
+        <button class="pdel" data-i="${i}">×</button>
+      </div>
+      <input type="range" min="80" max="1200" step="1" value="${p.freq}" data-pf="${i}">
+      <div class="integrity-bar"><div class="integrity-fill" id="int-${i}" style="width:100%"></div></div>
+    `;
+    list.appendChild(card);
+  });
+  list.querySelectorAll('.pdel').forEach(b => {
+    b.addEventListener('click', () => removePerson(+b.dataset.i));
+  });
+  list.querySelectorAll('input[data-pf]').forEach(r => {
+    r.addEventListener('input', (e) => {
+      const i = +e.target.dataset.pf;
+      people[i].freq = +e.target.value;
+      $('freq-r-' + i).textContent = e.target.value;
+    });
+  });
+  $('pop-count').textContent = people.length;
+  $('grain-total').textContent = (people.length * GRAINS_PER_PERSON).toLocaleString() + ' grains';
+  $('add-btn').disabled = people.length >= MAX_PEOPLE;
+  rebuildMatrix();
+}
+
+function rebuildMatrix() {
+  const body = $('matrix-body');
+  if (people.length < 2) {
+    body.innerHTML = '<div style="color:var(--phos-dim);font-size:9px">Need 2+ walkers</div>';
+    return;
+  }
+  body.innerHTML = '';
+  for (let i = 0; i < people.length; i++) {
+    for (let j = i+1; j < people.length; j++) {
+      const a = people[i], b = people[j];
+      const r = classifyPair(a.freq, b.freq);
+      const row = document.createElement('div');
+      row.className = 'mrow';
+      row.innerHTML = `
+        <span style="display:flex;align-items:center;gap:4px;">
+          <span class="swatch" style="background:${a.hex};width:8px;height:8px"></span>
+          <span class="swatch" style="background:${b.hex};width:8px;height:8px"></span>
+          <span style="color:var(--ink);opacity:0.7">${a.name[0]}·${b.name[0]}</span>
+        </span>
+        <span class="mtype" style="color:${r.color}">${r.label}</span>
+      `;
+      body.appendChild(row);
+    }
+  }
+}
+
+$('speed').addEventListener('input', (e) => { state.walkSpeed = +e.target.value; $('speed-val').textContent = state.walkSpeed.toFixed(1); });
+$('range').addEventListener('input', (e) => { state.interactionRange = +e.target.value; $('range-val').textContent = state.interactionRange.toFixed(1); });
+$('distortion').addEventListener('input', (e) => { state.distortion = +e.target.value; $('dist-val').textContent = state.distortion.toFixed(2); });
+
+$('add-btn').addEventListener('click', () => addPerson());
+
+const SCENARIOS = {
+  harmony: [0, 2, 4],
+  discord: [0, 5],
+  octaves: [{i:2, f:220}, {i:0, f:440}, {i:1, f:880}],
+  crowd:   [0,1,2,3,4,5],
+  solo:    [0],
+  duet:    [{i:0, f:440}, {i:1, f:446}]
+};
+
+function loadScenario(key) {
+  while (people.length) removePerson(people.length - 1);
+  const sc = SCENARIOS[key];
+  if (!sc) return;
+  sc.forEach((entry) => {
+    if (typeof entry === 'number') {
+      addPerson(entry);
+    } else {
+      addPerson(entry.i);
+      const p = people[people.length - 1];
+      p.freq = entry.f;
+    }
+  });
+  rebuildPeopleList();
+}
+
+document.querySelectorAll('.scenario').forEach(b => {
+  b.addEventListener('click', () => loadScenario(b.dataset.scenario));
+});
+
+const panel = $('panel');
+const collapseBtn = $('collapse-btn');
+let collapsed = false;
+collapseBtn.addEventListener('click', () => {
+  collapsed = !collapsed;
+  panel.classList.toggle('collapsed', collapsed);
+  collapseBtn.textContent = collapsed ? '▶' : '◀';
+});
+
+$('t-floor').addEventListener('click', (e) => {
+  state.showFloor = !state.showFloor;
+  floorGroup.visible = state.showFloor;
+  e.currentTarget.classList.toggle('on', state.showFloor);
+});
+$('t-aura').addEventListener('click', (e) => {
+  state.showAura = !state.showAura;
+  e.currentTarget.classList.toggle('on', state.showAura);
+  // aura visibility is managed per-frame by harmony state
+});
+$('t-labels').addEventListener('click', (e) => {
+  state.showLabels = !state.showLabels;
+  e.currentTarget.classList.toggle('on', state.showLabels);
+  people.forEach(p => p.label.visible = state.showLabels);
+});
+$('t-breath').addEventListener('click', (e) => {
+  state.breathingZoom = !state.breathingZoom;
+  e.currentTarget.classList.toggle('on', state.breathingZoom);
+});
+
+// right-side panel collapse handlers
+const readoutEl = $('readout');
+const readoutBtn = $('readout-collapse');
+let readoutCollapsed = true;
+readoutBtn.addEventListener('click', () => {
+  readoutCollapsed = !readoutCollapsed;
+  readoutEl.classList.toggle('collapsed', readoutCollapsed);
+  readoutBtn.textContent = readoutCollapsed ? '▶' : '◀';
+});
+
+const matrixEl = $('matrix');
+const matrixBtn = $('matrix-collapse');
+let matrixCollapsed = true;
+matrixBtn.addEventListener('click', () => {
+  matrixCollapsed = !matrixCollapsed;
+  matrixEl.classList.toggle('collapsed', matrixCollapsed);
+  matrixBtn.textContent = matrixCollapsed ? '▶' : '◀';
+});
+
+// ---------- GAIT / DEFORMATION ----------
+function applyGait(s, person, sp) {
+  const tpart = s.t;
+  const gaitPhase = person.gait;
+  let lx = s.x, ly = s.y, lz = s.z;
+
+  if (s.part === 'upper-arm-L' || s.part === 'upper-arm-R' ||
+      s.part === 'forearm-L'   || s.part === 'forearm-R'   ||
+      s.part === 'hand-L'      || s.part === 'hand-R') {
+    const swingDir = (s.part.endsWith('-L')) ? 1 : -1;
+    const swing = Math.sin(gaitPhase) * swingDir * 0.35 * tpart * Math.min(1, sp);
+    lz += swing;
+  } else if (s.part === 'thigh-L'  || s.part === 'thigh-R'  ||
+             s.part === 'shin-L'   || s.part === 'shin-R'   ||
+             s.part === 'foot-L'   || s.part === 'foot-R') {
+    const swingDir = (s.part.endsWith('-L')) ? -1 : 1;
+    const swing = Math.sin(gaitPhase) * swingDir * 0.30 * tpart * Math.min(1, sp);
+    lz += swing;
+    const lift = Math.max(0, Math.sin(gaitPhase) * swingDir) * 0.10 * tpart * Math.min(1, sp);
+    ly += lift;
+  } else if (s.part === 'chest' || s.part === 'abdomen' ||
+             s.part === 'head'  || s.part === 'neck' ||
+             s.part === 'shoulder' || s.part === 'hips') {
+    ly += Math.abs(Math.sin(gaitPhase)) * 0.04 * Math.min(1, sp);
+    // slight side-to-side sway
+    lx += Math.sin(gaitPhase * 0.5) * 0.015 * Math.min(1, sp);
+  }
+
+  return { x: lx, y: ly, z: lz };
+}
+
+function rotateY(x, z, ang) {
+  const c = Math.cos(ang), s = Math.sin(ang);
+  return { x: x * c + z * s, z: -x * s + z * c };
+}
+
+// Smooth noise via sin combinations
+function noise3(x, y, z) {
+  return Math.sin(x * 1.7 + Math.cos(y * 2.3)) *
+         Math.sin(y * 1.9 + Math.cos(z * 2.1)) *
+         Math.sin(z * 1.3 + Math.cos(x * 1.5));
+}
+
+// ---------- SIM ----------
+const clock = new THREE.Clock();
+let t = 0;
+
+function animate() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  t += dt;
+
+  for (const p of people) p.step(dt, people, state.walkSpeed);
+
+  // -------- per-person processing --------
+  for (let pi = 0; pi < people.length; pi++) {
+    const p = people[pi];
+    const speed = Math.sqrt(p.vx*p.vx + p.vz*p.vz);
+
+    // gather neighbors
+    const neighbors = [];
+    let dissonanceLoad = 0;     // weighted dissonance ∈ [0, ~1+]
+    let consonanceLoad = 0;
+    for (const o of people) {
+      if (o === p) continue;
+      const dx = o.x - p.x, dz = o.z - p.z;
+      const dd = Math.sqrt(dx*dx + dz*dz);
+      if (dd < state.interactionRange) {
+        const closeness = 1 - (dd / state.interactionRange);
+        const con = consonance(p.freq, o.freq);
+        const diss = 1 - con;
+        neighbors.push({ other: o, dd, dx, dz, closeness, con, diss });
+        dissonanceLoad += closeness * diss;
+        consonanceLoad += closeness * con;
+      }
+    }
+
+    // Form integrity: starts at 1, dissonant neighbors reduce it, consonant ones reinforce.
+    // Dissonance is dramatically amplified by the distortion slider.
+    const rawForm = Math.max(0,
+      1 - dissonanceLoad * 1.4 * state.distortion + consonanceLoad * 0.15
+    );
+    p._formScore = Math.min(1, rawForm);
+    // smooth so transitions are visible but not too jittery
+    p._smoothedForm = p._smoothedForm * 0.85 + p._formScore * 0.15;
+    // smoothed consonance load for harmonic glow
+    p._smoothedConLoad = (p._smoothedConLoad ?? 0) * 0.88 + Math.min(1.5, consonanceLoad) * 0.12;
+    const form = p._smoothedForm;            // 0 (monster) .. 1 (human)
+    const corrupt = 1 - form;                // how distorted
+    const harmGlow = Math.min(1, p._smoothedConLoad);  // 0..1, how much they're harmonizing
+
+    // Find dominant dissonant neighbor (direction to "pull toward")
+    let pullDirX = 0, pullDirZ = 0, pullStrength = 0;
+    for (const n of neighbors) {
+      if (n.diss > 0.5) {
+        const w = n.closeness * n.diss;
+        const dn = Math.sqrt(n.dx * n.dx + n.dz * n.dz) + 0.0001;
+        pullDirX += (n.dx / dn) * w;
+        pullDirZ += (n.dz / dn) * w;
+        pullStrength += w;
+      }
+    }
+    if (pullStrength > 0.0001) {
+      const norm = Math.sqrt(pullDirX*pullDirX + pullDirZ*pullDirZ) + 0.0001;
+      pullDirX /= norm;
+      pullDirZ /= norm;
+    }
+
+    // -------- per-grain update --------
+    for (let i = 0; i < p.count; i++) {
+      const sk = p.skeleton[i];
+      const gIdx = p.slotIdx + i;
+      const ax = gIdx * 3;
+      const seed = p.grainSeeds[i];
+
+      // 1) Skeleton + gait
+      const gaited = applyGait(sk, p, speed);
+      let lx = gaited.x, ly = gaited.y, lz = gaited.z;
+
+      // 2) DEFORMATION based on corrupt level
+      //    - elongate head upward
+      //    - twist limbs around body axis
+      //    - displace toward dominant dissonant neighbor
+      //    - scatter peripheral grains (low importance) wildly
+      if (corrupt > 0.01) {
+        // overall stretch — head/extremities get pulled outward as if melting
+        const stretchY = (sk.y > 1.0) ? corrupt * 0.6 * (sk.y - 1.0) : 0;
+        ly += stretchY * Math.sin(t * 1.5 + seed) * 0.7;
+
+        // limb twist (rotate around body Y) — proportional to height-from-center
+        const twistAmount = corrupt * 1.2 * Math.sin(t * 0.9 + seed * 0.1);
+        const twistedX = lx * Math.cos(twistAmount) + lz * Math.sin(twistAmount);
+        const twistedZ = -lx * Math.sin(twistAmount) + lz * Math.cos(twistAmount);
+        lx = lx * (1 - corrupt) + twistedX * corrupt;
+        lz = lz * (1 - corrupt) + twistedZ * corrupt;
+
+        // noise-based displacement — makes silhouette wobbly and inhuman
+        const ns = 1.5;
+        const nx = noise3(sk.x * ns + t * 0.6, sk.y * ns + t * 0.4, sk.z * ns + seed);
+        const ny = noise3(sk.y * ns + t * 0.5, sk.z * ns + seed, sk.x * ns + t * 0.7);
+        const nz = noise3(sk.z * ns + t * 0.8, sk.x * ns + seed, sk.y * ns + t * 0.3);
+        const displaceMag = corrupt * 0.55 * (1.2 - sk.important * 0.5);
+        lx += nx * displaceMag;
+        ly += ny * displaceMag;
+        lz += nz * displaceMag;
+
+        // peripheral grains (low importance) scatter way more
+        if (sk.important < 0.85) {
+          const scatter = corrupt * corrupt * 0.6 * (1 - sk.important);
+          lx += (Math.random() - 0.5) * scatter;
+          ly += (Math.random() - 0.5) * scatter;
+          lz += (Math.random() - 0.5) * scatter;
+        }
+      }
+
+      // 3) rotate body-local x/z by heading
+      const rot = rotateY(lx, lz, p.heading);
+
+      // 4) translate to world
+      let tgtX = p.x + rot.x;
+      let tgtY = FLOOR_Y + 1.3 + ly;   // FLOOR_Y + 1.3 places feet at FLOOR_Y
+      let tgtZ = p.z + rot.z;
+
+      // 5) Additional pull toward dominant dissonant neighbor
+      //    (grains in dissonant proximity tend to drift toward the source of distress)
+      if (pullStrength > 0.05) {
+        const pullAmount = corrupt * pullStrength * 0.35 * (1 - sk.important * 0.6);
+        // modulate by per-grain seed so it feels organic
+        const mod = (Math.sin(t * 2 + seed) * 0.5 + 0.5);
+        tgtX += pullDirX * pullAmount * mod;
+        tgtZ += pullDirZ * pullAmount * mod;
+      }
+
+      // 6) base vibration (always present; gentle when stable, harsh when corrupt)
+      const baseVib = 0.008 + corrupt * 0.05;
+      tgtX += (Math.random() - 0.5) * baseVib;
+      tgtY += (Math.random() - 0.5) * baseVib;
+      tgtZ += (Math.random() - 0.5) * baseVib;
+
+      // 7) Color: stable = own color, corrupt = blend with neighbors
+      let cr = p.color[0], cg = p.color[1], cb = p.color[2];
+      if (neighbors.length > 0) {
+        let mixR = 0, mixG = 0, mixB = 0, mixW = 0;
+        for (const n of neighbors) {
+          // gentle blend for consonant, aggressive bleed for dissonant
+          const blendW = n.closeness * (0.4 + n.diss * 0.7) * (0.4 + corrupt * 0.8);
+          mixR += n.other.color[0] * blendW;
+          mixG += n.other.color[1] * blendW;
+          mixB += n.other.color[2] * blendW;
+          mixW += blendW;
+        }
+        if (mixW > 0) {
+          const totalW = 1 + mixW;
+          cr = (cr + mixR) / totalW;
+          cg = (cg + mixG) / totalW;
+          cb = (cb + mixB) / totalW;
+        }
+      }
+      // brightness: dim when corrupt, brighter when whole; +bonus when harmonizing nearby
+      const harmBoost = 1 + harmGlow * 0.35 * (0.7 + 0.3 * Math.sin(p.localTime * 5));
+      const brightness = (0.55 + 0.45 * form) * harmBoost;
+      const pulse = 0.92 + 0.08 * Math.sin(p.localTime * 4 + i * 0.1);
+
+      // 8) integrate with spring/damping — stiffness drops with corruption (body literally falls apart)
+      const stiffness = (12 + 18 * form);
+      const damp = 0.85 + corrupt * 0.04;
+
+      const px = gPositions[ax], py = gPositions[ax+1], pz = gPositions[ax+2];
+      let vx = gVelocities[ax], vy = gVelocities[ax+1], vz = gVelocities[ax+2];
+
+      vx += (tgtX - px) * stiffness * dt;
+      vy += (tgtY - py) * stiffness * dt;
+      vz += (tgtZ - pz) * stiffness * dt;
+
+      vx *= damp; vy *= damp; vz *= damp;
+
+      gVelocities[ax]   = vx;
+      gVelocities[ax+1] = vy;
+      gVelocities[ax+2] = vz;
+
+      gPositions[ax]   = px + vx * dt;
+      gPositions[ax+1] = py + vy * dt;
+      gPositions[ax+2] = pz + vz * dt;
+
+      gColors[ax]   = cr * brightness * pulse;
+      gColors[ax+1] = cg * brightness * pulse;
+      gColors[ax+2] = cb * brightness * pulse;
+    }
+
+    // aura — always visible when harmonizing strongly, regardless of toggle
+    if (p.aura) {
+      p.aura.position.set(p.x, FLOOR_Y + 1.0, p.z);
+      const pulse = 1 + 0.15 * Math.sin(p.localTime * 4);
+      p.aura.scale.setScalar((2.5 + 0.4 * Math.sin(p.localTime * 3)) * (1 + harmGlow * 0.6));
+      const baseOp = state.showAura ? 0.55 : 0;
+      const harmOp = harmGlow * 0.7 * pulse;
+      p.aura.material.opacity = (baseOp * form) + harmOp;
+      p.aura.visible = (p.aura.material.opacity > 0.01);
+    }
+    // label
+    if (p.label) {
+      p.label.position.set(p.x, FLOOR_Y + 3.0, p.z);
+    }
+  }
+
+  grainGeom.attributes.position.needsUpdate = true;
+  grainGeom.attributes.color.needsUpdate = true;
+
+  // ---------- HARMONIC BONDS UPDATE ----------
+  // Hide all sprites by default; visible ones will be set as we process pairs.
+  for (let i = 0; i < intervalSprites.length; i++) {
+    intervalSprites[i].material.opacity *= 0.85;   // fade out
+  }
+  // also fade out bond grains
+  for (let i = 0; i < bondActive.length; i++) bondActive[i] *= 0.92;
+
+  let bondSlot = 0;
+  for (let i = 0; i < people.length; i++) {
+    for (let j = i+1; j < people.length; j++) {
+      if (bondSlot >= MAX_BONDS) break;
+      const a = people[i], b = people[j];
+      const dx = b.x - a.x, dz = b.z - a.z;
+      const dd = Math.sqrt(dx*dx + dz*dz);
+      const cls = classifyPair(a.freq, b.freq);
+      const conScore = consonance(a.freq, b.freq);
+      // Only show a bond when CLOSE and CONSONANT
+      const closeness = Math.max(0, 1 - dd / (state.interactionRange * 1.15));
+      const isHarmonic = conScore > 0.55 && closeness > 0.15;
+      const symbol = INTERVAL_SYMBOLS[cls.label];
+
+      if (isHarmonic && symbol) {
+        const strength = closeness * conScore;     // 0..1
+
+        // midpoint between the two walkers (chest height)
+        const mx = (a.x + b.x) / 2;
+        const my = FLOOR_Y + 1.6;
+        const mz = (a.z + b.z) / 2;
+
+        // ---- Stream grains flowing back and forth ----
+        // We use a sine-driven flow along the path from a to b.
+        const slotBase = bondSlot * BOND_STREAM_GRAINS * 3;
+        const ax_p = FLOOR_Y + 1.0;       // chest height of A
+        const bx_p = FLOOR_Y + 1.0;       // chest height of B
+        for (let k = 0; k < BOND_STREAM_GRAINS; k++) {
+          // staggered phase along the path
+          const u0 = k / BOND_STREAM_GRAINS;
+          // u oscillates back and forth; phase from k
+          const u = (u0 + (t * 0.25 + k * 0.013)) % 1;
+          // path from A's chest to B's chest with a small arc
+          const px = a.x + (b.x - a.x) * u;
+          const pz = a.z + (b.z - a.z) * u;
+          const arcAmp = 0.18 + 0.12 * Math.sin(u * Math.PI);
+          const py = FLOOR_Y + 1.0 + Math.sin(u * Math.PI) * arcAmp + Math.sin(t * 2 + k * 0.3) * 0.04;
+
+          // perpendicular wobble — twist around path
+          const dxn = (b.x - a.x), dzn = (b.z - a.z);
+          const len = Math.sqrt(dxn*dxn + dzn*dzn) + 0.0001;
+          const perpX = -dzn / len;
+          const perpZ =  dxn / len;
+          const wobble = Math.sin(u * Math.PI * 6 + t * 4 + k * 0.7) * 0.08 * strength;
+
+          const idx = slotBase + k * 3;
+          bondPositions[idx]   = px + perpX * wobble;
+          bondPositions[idx+1] = py;
+          bondPositions[idx+2] = pz + perpZ * wobble;
+
+          // color: blend of the two walkers at position along path
+          const blend = Math.sin(u * Math.PI);  // peaks at midpoint
+          const tcol = u;     // linear interpolation
+          // a deeper color at the midpoint (blend of both), with sparkle
+          const cr = a.color[0] * (1 - tcol) + b.color[0] * tcol;
+          const cg = a.color[1] * (1 - tcol) + b.color[1] * tcol;
+          const cb = a.color[2] * (1 - tcol) + b.color[2] * tcol;
+          const sparkle = 0.8 + 0.2 * Math.sin(t * 8 + k * 0.5);
+          bondColors[idx]   = cr * sparkle * strength;
+          bondColors[idx+1] = cg * sparkle * strength;
+          bondColors[idx+2] = cb * sparkle * strength;
+          bondActive[bondSlot * BOND_STREAM_GRAINS + k] = strength;
+        }
+
+        // ---- Interval symbol floating above ----
+        const sp = intervalSprites[bondSlot];
+        // pick color matching the interval class
+        const symColor = cls.color || '#7fff8a';
+        drawIntervalSymbol(sp, symbol, symColor);
+        sp.position.set(mx, my + 1.3 + Math.sin(t * 1.5) * 0.08, mz);
+        const targetOpacity = strength * 0.95;
+        sp.material.opacity = sp.material.opacity * 0.7 + targetOpacity * 0.3;
+        sp.scale.set(1.4 + strength * 0.6, 0.7 + strength * 0.3, 1);
+      } else {
+        // hide this slot's grains and symbol gradually (already fading from frame start)
+        const slotBase = bondSlot * BOND_STREAM_GRAINS * 3;
+        for (let k = 0; k < BOND_STREAM_GRAINS; k++) {
+          const ba = bondActive[bondSlot * BOND_STREAM_GRAINS + k];
+          if (ba < 0.02) {
+            bondPositions[slotBase + k * 3 + 1] = -200;
+            bondColors[slotBase + k * 3] = 0;
+            bondColors[slotBase + k * 3 + 1] = 0;
+            bondColors[slotBase + k * 3 + 2] = 0;
+          } else {
+            // continue to fade in place
+            bondColors[slotBase + k * 3]   *= 0.9;
+            bondColors[slotBase + k * 3+1] *= 0.9;
+            bondColors[slotBase + k * 3+2] *= 0.9;
+          }
+        }
+      }
+      bondSlot++;
+    }
+  }
+  bondGeom.attributes.position.needsUpdate = true;
+  bondGeom.attributes.color.needsUpdate = true;
+
+  // HUD
+  if (Math.floor(t*4) !== Math.floor((t-dt)*4)) {
+    let totalForm = 0, totalMix = 0, pairCount = 0, totalDist = 0, totalCon = 0;
+    for (const p of people) totalForm += p._smoothedForm;
+    for (let i = 0; i < people.length; i++) {
+      const fi = $('int-' + i);
+      if (fi) {
+        const pct = people[i]._smoothedForm * 100;
+        fi.style.width = pct + '%';
+      }
+      for (let j = i+1; j < people.length; j++) {
+        const a = people[i], b = people[j];
+        const dx = a.x - b.x, dz = a.z - b.z;
+        const dd = Math.sqrt(dx*dx + dz*dz);
+        totalDist += dd;
+        totalCon += consonance(a.freq, b.freq);
+        if (dd < state.interactionRange) totalMix += (1 - dd / state.interactionRange);
+        pairCount++;
+      }
+    }
+    const avgForm = people.length > 0 ? totalForm / people.length : 1;
+    $('r-integrity').textContent = (avgForm * 100).toFixed(0) + '%';
+    $('r-integrity').style.color = avgForm > 0.8 ? '#7fff8a' : (avgForm > 0.5 ? '#ffb84a' : '#c4624a');
+    $('r-mix').textContent = totalMix.toFixed(2);
+    $('r-dist').textContent = pairCount > 0 ? (totalDist / pairCount).toFixed(1) + ' m' : '—';
+    const avgCon = pairCount > 0 ? totalCon / pairCount : 1;
+    let lbl = '—', col = '#3a6b40';
+    if (people.length >= 2) {
+      if (avgCon > 0.7) { lbl = 'CONSONANT'; col = '#7fff8a'; }
+      else if (avgCon > 0.35) { lbl = 'MIXED';  col = '#ffb84a'; }
+      else { lbl = 'DISSONANT'; col = '#c4624a'; }
+    }
+    $('r-coh').textContent = lbl;
+    $('r-coh').style.color = col;
+  }
+
+  // breathing zoom — slow ~30-second period oscillation, gentle
+  if (state.breathingZoom) {
+    const targetOffset = Math.sin(t * 0.21) * 2.2;     // ~30s full cycle, ±2.2 units
+    breathingOffset = breathingOffset * 0.97 + targetOffset * 0.03;
+  } else {
+    breathingOffset *= 0.97;
+  }
+
+  updateCamera();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+loadScenario('crowd');
+animate();
+</script>
+
+</body>
+</html>
